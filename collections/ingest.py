@@ -20,7 +20,7 @@ print(f"Total PDFs loaded: {len(all_documents)}")
 # Split into chunks
 text_splitter = RecursiveCharacterTextSplitter(
     chunk_size=1000,
-    chunk_overlap=250
+    chunk_overlap=350
 )
 texts = text_splitter.split_documents(all_documents)
 print(f"Total text chunks created: {len(texts)}")
