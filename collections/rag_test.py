@@ -1,13 +1,11 @@
-# rag_test.py
+import os
 import json
 from qdrant_client import QdrantClient
 from langchain_community.vectorstores import Qdrant
 from langchain_community.embeddings import HuggingFaceBgeEmbeddings
 from fuzzywuzzy import fuzz
 
-# -----------------------------------------------------------
-# Step 1. Load question–answer pairs from JSON
-# -----------------------------------------------------------
+#step1 for loading the dataset
 def load_qa_from_json(path):
     with open(path, "r", encoding="utf-8") as f:
         data = json.load(f)
@@ -27,16 +25,14 @@ print(f"✅ Loaded {len(qa_pairs)} question–answer pairs")
 print(qa_pairs[:2])
 
 
-# -----------------------------------------------------------
-# Step 2. Connect to Qdrant and embedding model
-# -----------------------------------------------------------
+#step2 connect the qdrant
 embeddings = HuggingFaceBgeEmbeddings(
     model_name="BAAI/bge-large-en",
-    model_kwargs={"device": "cpu"}   # use "cuda" if you want GPU
+    model_kwargs={"device": "cpu"}   
 )
 
 client = QdrantClient(
-    url="http://localhost:6333",     # Qdrant must be running locally
+    url="http://localhost:6333",    
     prefer_grpc=False
 )
 
@@ -46,28 +42,24 @@ db = Qdrant(
     client=client
 )
 
-print("✅ Connected to Qdrant collection: pdf_db")
+print(" Connected to Qdrant collection: pdf_db")
 
 
-# -----------------------------------------------------------
-# Step 3. Retrieve top-k contexts for each question
-# -----------------------------------------------------------
+
 k = 5  # number of top results per question
 print(f"🔍 Retrieving top {k} contexts for each question...")
 
 for idx, item in enumerate(qa_pairs, 1):
     q = item["question"]
-    results = db.similarity_search_with_score(q, k=k)  # returns [(doc, score), ...]
+    results = db.similarity_search_with_score(q, k=k)  
 
-    # store retrieved texts and scores
+   
     item["retrieved_texts"] = [doc.page_content for doc, _ in results]
     item["retrieved_scores"] = [score for _doc, score in results]
 
     print(f"{idx}. Retrieved {len(results)} chunks for: {q[:60]}...")
 
-# -----------------------------------------------------------
-# Step 4. Save retrieval results
-# -----------------------------------------------------------
+#saving retrival results
 with open("retrieval_results.json", "w", encoding="utf-8") as f:
     json.dump(qa_pairs, f, ensure_ascii=False, indent=2)
 
@@ -78,15 +70,13 @@ print("✅ Retrieval results saved to retrieval_results.json")
 with open("retrieval_results.json", "r", encoding="utf-8") as f:
     qa_pairs = json.load(f)
 
-print(f"📊 Loaded {len(qa_pairs)} retrieval results for evaluation.")
+print(f" Loaded {len(qa_pairs)} retrieval results for evaluation.")
 
 
 from fuzzywuzzy import fuzz
 import math
 
-# -----------------------------------------------------------
-# Step 1. Relevance check function
-# -----------------------------------------------------------
+#checking function for fuzzyword
 def is_relevant(expected, text, threshold=50):
     """
     Returns True if the retrieved chunk matches the ground-truth answer
@@ -95,9 +85,7 @@ def is_relevant(expected, text, threshold=50):
     return fuzz.partial_ratio(expected.lower(), text.lower()) >= threshold
 
 
-# -----------------------------------------------------------
-# Step 2. Compute Recall@k, Precision@k, MRR, and NDCG@k
-# -----------------------------------------------------------
+
 def compute_metrics(qa_pairs, k=5):
     total = len(qa_pairs)
     hits = 0
@@ -112,7 +100,7 @@ def compute_metrics(qa_pairs, k=5):
         found_rank = None
         relevance_scores = []
 
-        # --- calculate relevance per retrieved chunk ---
+       
         for rank, txt in enumerate(retrieved_texts, start=1):
             relevant = 1 if is_relevant(expected, txt) else 0
             relevance_scores.append(relevant)
@@ -147,12 +135,10 @@ def compute_metrics(qa_pairs, k=5):
     }
 
 
-# -----------------------------------------------------------
-# Step 3. Compute and Print Results
-# -----------------------------------------------------------
+
 metrics = compute_metrics(qa_pairs, k=5)
 
-print("\n📈 Retrieval Evaluation Results:")
+print("\n Retrieval Evaluation Results:")
 print(f"Recall@5: {metrics['Recall@k']:.3f}")
 print(f"Precision@5: {metrics['Precision@k']:.3f}")
 print(f"MRR: {metrics['MRR']:.3f}")
